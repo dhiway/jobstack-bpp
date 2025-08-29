@@ -1,0 +1,33 @@
+# Enable or disable debug logging
+debug: true
+
+# Whether to use mock responses instead of calling a real BPP
+use_mock_bpp_response: false
+
+bpp:
+  # Unique identifier for your BPP (Seller App)
+  id: "bpp.example.com"
+
+  # Callback endpoint where your BPP will receive responses 
+  # (for requests it initiates into the Beckn network)
+  caller_uri: "https://example.com/bpp/webhook"
+
+  # Domain of the Beckn/ONDC network vertical (e.g., TRV10 = Travel, RET10 = Retail)
+  domain: "ONDC:TRV10"
+
+  # Protocol version to use
+  version: "2.0.0"
+
+  # Time-to-live for requests (ISO8601 duration, e.g., PT30S = 30 seconds)
+  ttl: "PT30S"
+
+http:
+  # The address your service will bind to (0.0.0.0 = all interfaces)
+  address: 0.0.0.0
+
+  # Port on which your service will run
+  port: 3009
+
+provider_db:
+  # URI of the provider database or external API
+  db_uri: "https://jobs-demo.example.com/api/v1"

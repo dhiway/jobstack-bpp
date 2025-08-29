@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  bpp-onest-lite:
+    build: .
+    image: bpp-onest-lite
+    container_name: bpp-onest-lite
+    volumes:
+      - ./config:/app/config
+    environment:
+      APP_ENV: ${APP_ENV}
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    restart: unless-stopped
+    command: ["./bpp-onest-lite", "${CONFIG_FILE}"]

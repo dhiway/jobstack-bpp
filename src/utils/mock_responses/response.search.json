@@ -1,0 +1,62 @@
+
+{
+    "context": {
+       "domain": "ONDC:TRV10",
+        "action": "on_search",
+        "bpp_id": "bpp1.dhiway.com",
+      "bpp_uri": "https://beckn-adapter.dhiway.net/bpp/receiver",
+        "country": "IND",
+        "city": "std:080",
+      "location": {
+      "city": {
+        "name": "Bengaluru",
+        "code": "std:080"
+      },
+      "country": {
+        "name": "India",
+        "code": "IND"
+      },
+  "gps": "12.9716,77.5946"
+    },
+     "bap_id": "bap.dhiway.com",
+      "bap_uri": "https://beckn-adapter.dhiway.net/bap/receiver",
+      "message_id": "sn-mID6",
+      "transaction_id": "sn-tID000",
+        "ttl": "PT30S",
+      "version": "2.0.0",
+        "timestamp": "2025-06-16T08:04:09.055Z"
+    },
+    "message": {
+        "catalog": {
+            "descriptor": {
+                "name": "Dhiway Test BPP"
+            },
+            "providers": [
+                {
+                    "id": "provider-001 - WEBHOOK BPP TESTING",
+                    "descriptor": {
+                        "name": "BPP REFEENCE"
+                    },
+                    "locations": [
+                        {
+                            "id": "loc-001"
+                        }
+                    ],
+                    "items": [
+                        {
+                            "id": "item-001",
+                            "descriptor": {
+                                "name": "Product A"
+                            },
+                            "price": {
+                                "currency": "INR",
+                                "value": "100"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+  }
+  
