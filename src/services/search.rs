@@ -7,7 +7,7 @@ use crate::utils::{payload_generator::build_beckn_payload, shared::call_provider
 
 pub async fn handle_search(
     context: Context,
-    mut message: Value,
+    message: Value,
     config: &AppConfig,
 ) -> anyhow::Result<Value> {
     let pagination = match message.get("pagination") {
@@ -18,12 +18,15 @@ pub async fn handle_search(
         Some(p) => p.clone(),
     };
 
-    message["pagination"] = pagination.clone();
-
-    let wrapped_message = serde_json::json!({
+    let mut wrapped_message = serde_json::json!({
         "message": message,
         "pagination": pagination
     });
+    if let Some(options) = message.get("options") {
+        if !options.is_null() {
+            wrapped_message["options"] = options.clone();
+        }
+    }
     println!("wrapped_message : {:?}", wrapped_message);
     let db_response = call_provider_db("/beckn/search", wrapped_message, config).await?;
 
