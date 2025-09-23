@@ -28,7 +28,7 @@ pub async fn webhook_handler(
 ) -> impl IntoResponse {
     info!(
         target: "webhook",
-        "🟢 [BPP → Adapter] Request received | txn_id: {}, msg_id: {}, action: {}, timestamp: {}",
+        "🟢 [ Adapter → BPP] Request received | txn_id: {}, msg_id: {}, action: {}, timestamp: {}",
         payload.context.transaction_id,
         payload.context.message_id,
         payload.context.action,
