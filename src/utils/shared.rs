@@ -19,7 +19,7 @@ pub async fn send_to_bpp_caller(
 
     info!(
         target: "bpp",
-        "🟡 [Adapter → BPP] Sending request | action: {}, txn_id: {}",
+         "🟡 [BPP → Adapter] Sending request | action: {}, txn_id: {}",
         full_action,
         txn_id
     );
