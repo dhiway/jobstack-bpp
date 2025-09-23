@@ -2,6 +2,7 @@ use crate::config::AppConfig;
 use crate::models::webhook::Context;
 
 use serde_json::Value;
+use tracing::info;
 
 use crate::utils::{payload_generator::build_beckn_payload, shared::call_provider_db};
 
@@ -18,7 +19,7 @@ pub async fn handle_confirm(
 
     let result = build_beckn_payload(config, context, &db_response);
 
-    println!("response : {:?}", result);
+    info!("response : {:?}", result);
 
     Ok(result)
 }

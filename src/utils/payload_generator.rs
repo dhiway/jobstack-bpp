@@ -2,6 +2,7 @@ use crate::config::AppConfig;
 use crate::models::webhook::Context;
 use chrono::Utc;
 use serde_json::{json, Value};
+use tracing::info;
 
 fn generate_context(config: &AppConfig, context: Context) -> Value {
     let now = Utc::now().to_rfc3339();
@@ -29,6 +30,7 @@ pub fn build_beckn_payload(config: &AppConfig, context: Context, db_response: &V
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     if let Some(pagination) = db_response.get("pagination") {
+        info!("📊 Pagination details: {}", pagination);
         if let Some(message_obj) = inner_message.as_object_mut() {
             message_obj.insert("pagination".to_string(), pagination.clone());
         }

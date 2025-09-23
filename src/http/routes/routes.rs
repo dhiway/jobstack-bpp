@@ -7,7 +7,7 @@ use axum::{
 };
 use chrono::Utc;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::models::webhook::{Ack, AckResponse, AckStatus, HealthResponse, WebhookPayload};
 use crate::workers::processor::spawn_processing_task;
@@ -27,9 +27,15 @@ pub async fn webhook_handler(
     Json(payload): Json<WebhookPayload>,
 ) -> impl IntoResponse {
     info!(
-        "webhook called: action = {:?}, context = {:?}, message = {:?}",
-        action, payload.context, payload.message
+        target: "webhook",
+        "🟢 [BPP → Adapter] Request received | txn_id: {}, msg_id: {}, action: {}, timestamp: {}",
+        payload.context.transaction_id,
+        payload.context.message_id,
+        payload.context.action,
+        payload.context.timestamp
     );
+
+    debug!(target: "webhook", "🔎 Message payload: {:?}", payload.message);
     if action.starts_with("on_") {
         info!(
             "Skipping processing since action starts with 'on_': {:?}",
