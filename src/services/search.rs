@@ -27,12 +27,11 @@ pub async fn handle_search(
             wrapped_message["options"] = options.clone();
         }
     }
-    println!("wrapped_message : {:?}", wrapped_message);
     let db_response = call_provider_db("/beckn/search", wrapped_message, config).await?;
 
     let result = build_beckn_payload(config, context, &db_response);
 
-    println!("response : {:?}", result);
+    // println!("response : {:?}", result);
 
     Ok(result)
 }
