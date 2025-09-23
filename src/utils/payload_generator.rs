@@ -2,7 +2,6 @@ use crate::config::AppConfig;
 use crate::models::webhook::Context;
 use chrono::Utc;
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 fn generate_context(config: &AppConfig, context: Context) -> Value {
     let now = Utc::now().to_rfc3339();
