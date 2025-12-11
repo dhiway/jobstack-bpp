@@ -3,11 +3,11 @@ version: '3.8'
 services:
   bpp-onest-lite:
     build: .
-    image: bpp-onest-lite
-    container_name: bpp-onest-lite
+    image: bpp-onest-lite-mca
+    container_name: bpp-onest-lite-mca
     volumes:
       - ./config:/app/config
-      - ./app/logs:/app/app/logs 
+      - ./app/logs:/app/app/logs
     environment:
       APP_ENV: ${APP_ENV}
     ports:
