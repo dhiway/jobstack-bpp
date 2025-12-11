@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  bpp-onest-lite:
+  bpp-onest-lite-up:
     build: .
-    image: bpp-onest-lite
-    container_name: bpp-onest-lite
+    image: bpp-onest-lite-up
+    container_name: bpp-onest-lite-up
     volumes:
       - ./config:/app/config
       - ./app/logs:/app/app/logs 
