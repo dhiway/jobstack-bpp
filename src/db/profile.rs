@@ -143,7 +143,7 @@ pub async fn fetch_profiles(
     .fetch_one(db_pool)
     .await?;
 
-    let rows = sqlx::query(
+    let rows = query(
         r#"
         SELECT
             id,
@@ -186,4 +186,24 @@ pub async fn fetch_profiles(
         page: page as u32,
         limit: limit as u32,
     })
+}
+
+pub async fn delete_stale_profiles(
+    db_pool: &PgPool,
+    bpp_id: &str,
+    txn_id: &str,
+) -> Result<u64, sqlx::Error> {
+    let result = query(
+        r#"
+        DELETE FROM profiles
+        WHERE bpp_id = $1
+          AND transaction_id <> $2
+        "#,
+    )
+    .bind(bpp_id)
+    .bind(txn_id)
+    .execute(db_pool)
+    .await?;
+
+    Ok(result.rows_affected())
 }
