@@ -1,5 +1,5 @@
+pub mod profiles;
 pub mod webhook;
-
 use crate::state::AppState;
 use axum::{response::IntoResponse, routing::get, Json, Router};
 use chrono::Utc;
@@ -24,6 +24,7 @@ pub fn create_routes(app_state: AppState) -> Router {
 
     Router::new()
         .route("/", get(health_check))
+        .nest("/api", profiles::routes(app_state.clone()))
         .merge(webhook::routes(app_state))
         .layer(cors)
 }

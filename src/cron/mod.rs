@@ -11,9 +11,7 @@ pub async fn start_cron_jobs(
     {
         let state = state.clone();
         tokio::spawn(async move {
-            tracing::info!(
-                "🚀 Server restarted, waiting 5 seconds before first fetch_profiles..."
-            );
+            tracing::info!("🚀 Server restarted, waiting 5 seconds before first fetch_profiles...");
             sleep(Duration::from_secs(5)).await;
 
             tracing::info!("👤 Running initial fetch_profiles...");

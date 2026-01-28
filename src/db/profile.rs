@@ -1,6 +1,10 @@
+use crate::models::search::Pagination;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use serde_json::Value;
 use sqlx::{Error, PgPool};
+use tracing::info;
+
 pub struct NewProfile {
     pub profile_id: String,
     pub beckn_structure: Option<Value>,
@@ -10,6 +14,14 @@ pub struct NewProfile {
     pub transaction_id: String,
     pub bpp_id: String,
     pub bpp_uri: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginatedItems<T = serde_json::Value> {
+    pub items: Vec<T>,
+    pub total: i64,
+    pub page: u32,
+    pub limit: u32,
 }
 
 pub async fn store_profiles(db_pool: &PgPool, profiles: &[NewProfile]) -> Result<(), Error> {
@@ -106,4 +118,72 @@ pub async fn store_profiles(db_pool: &PgPool, profiles: &[NewProfile]) -> Result
     .await?;
 
     Ok(())
+}
+
+pub async fn fetch_profiles(
+    db_pool: &PgPool,
+    pagination: Pagination,
+) -> Result<PaginatedItems, sqlx::Error> {
+    let page = pagination.page.unwrap_or(1).max(1);
+    let limit = pagination.limit.unwrap_or(20).clamp(1, 1000);
+    let offset = (page - 1) * limit;
+
+    info!(
+        "Fetching profiles (page-limit) - Page: {}, Limit: {}, Offset: {}",
+        page, limit, offset
+    );
+
+    let total = sqlx::query_scalar!(
+        r#"
+        SELECT COUNT(*) as "count!"
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+        "#
+    )
+    .fetch_one(db_pool)
+    .await?;
+
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+            id,
+            profile_id,
+            beckn_structure,
+            transaction_id,
+            bpp_id,
+            bpp_uri AS bpp_url,
+            updated_at
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+        ORDER BY updated_at DESC, profile_id DESC
+        LIMIT $1
+        OFFSET $2
+        "#,
+        limit as i64,
+        offset as i64
+    )
+    .fetch_all(db_pool)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(|r| {
+            serde_json::json!({
+                "id": r.id,
+                "profile_id": r.profile_id,
+                "beckn_structure": r.beckn_structure,
+                "transaction_id": r.transaction_id,
+                "bpp_id": r.bpp_id,
+                "bpp_url": r.bpp_url,
+                "updated_at": r.updated_at
+            })
+        })
+        .collect();
+
+    Ok(PaginatedItems {
+        items,
+        total,
+        page: page as u32,
+        limit: limit as u32,
+    })
 }

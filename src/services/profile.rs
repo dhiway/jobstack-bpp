@@ -1,10 +1,12 @@
-use crate::db::profile::{store_profiles, NewProfile};
+use crate::db::profile::{fetch_profiles, store_profiles, NewProfile};
+use crate::models::profiles::ProfileSearchRequest;
 use crate::models::search::{Intent, Pagination, SearchMessage};
 use crate::models::webhook::{Ack, AckResponse, AckStatus, WebhookPayload};
 use crate::state::AppState;
 use crate::utils::http_client::post_json;
 use crate::utils::payload_generator::build_profile_beckn_request;
-use axum::Json;
+
+use axum::{extract::State, http::StatusCode, Json};
 use chrono::Utc;
 use deadpool_redis::redis::AsyncCommands;
 use serde_json::Value;
@@ -176,4 +178,30 @@ fn ack() -> Json<AckResponse> {
             ack: Ack { status: "ACK" },
         },
     })
+}
+
+pub async fn handle_search(
+    State(app_state): State<AppState>,
+    Json(req): Json<ProfileSearchRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let pagination = req.pagination.unwrap_or_default();
+
+    match fetch_profiles(&app_state.db_pool, pagination).await {
+        Ok(result) => Ok(Json(serde_json::json!({
+            "items": result.items,
+            "total": result.total,
+            "page": result.page,
+            "limit": result.limit
+        }))),
+
+        Err(err) => {
+            tracing::error!("fetch_profiles failed: {:?}", err);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to fetch profiles"
+                })),
+            ))
+        }
+    }
 }

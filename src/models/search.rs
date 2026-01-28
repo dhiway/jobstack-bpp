@@ -97,7 +97,7 @@ pub struct SearchRequestV2 {
     pub exclude: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Pagination {
     pub page: Option<u32>,
     pub limit: Option<u32>,

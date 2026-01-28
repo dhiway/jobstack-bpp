@@ -1,4 +1,3 @@
-
 use crate::models::search::{Intent, Pagination, SearchMessage};
 use crate::state::AppState;
 use crate::utils::http_client::post_json;
