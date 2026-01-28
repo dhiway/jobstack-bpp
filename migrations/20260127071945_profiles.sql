@@ -29,3 +29,5 @@ CREATE INDEX idx_profiles_last_synced_at_not_null
 ON profiles (last_synced_at)
 WHERE last_synced_at IS NOT NULL;
 
+CREATE INDEX idx_profiles_bpp_txn
+ON profiles (bpp_id, transaction_id);

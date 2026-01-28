@@ -1,4 +1,4 @@
-use crate::db::profile::{fetch_profiles, store_profiles, NewProfile};
+use crate::db::profile::{delete_stale_profiles, fetch_profiles, store_profiles, NewProfile};
 use crate::models::profiles::ProfileSearchRequest;
 use crate::models::search::{Intent, Pagination, SearchMessage};
 use crate::models::webhook::{Ack, AckResponse, AckStatus, WebhookPayload};
@@ -167,6 +167,16 @@ pub async fn handle_on_search(
                 error!("Failed to trigger next page {}: {}", next_page, e);
             }
         }
+    }
+
+    if received_pages.len() as u64 == total_pages {
+        match delete_stale_profiles(&app_state.db_pool, &bpp_id, txn_id).await {
+            Ok(count) => info!(
+                "🧹 Stale profiles cleaned up: {} rows deleted (bpp_id={}, txn_id={})",
+                count, bpp_id, txn_id
+            ),
+            Err(e) => error!("Stale cleanup failed: {}", e),
+        };
     }
 
     ack()
