@@ -2,7 +2,7 @@ use crate::models::search::Pagination;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
-use sqlx::{Error, PgPool};
+use sqlx::{query, query_scalar, Error, PgPool, Row};
 use tracing::info;
 
 pub struct NewProfile {
@@ -48,7 +48,7 @@ pub async fn store_profiles(db_pool: &PgPool, profiles: &[NewProfile]) -> Result
 
     let bpp_uris: Vec<&str> = profiles.iter().map(|p| p.bpp_uri.as_str()).collect();
 
-    sqlx::query(
+    query(
         r#"
         INSERT INTO profiles (
             profile_id,
@@ -133,17 +133,17 @@ pub async fn fetch_profiles(
         page, limit, offset
     );
 
-    let total = sqlx::query_scalar!(
+    let total: i64 = query_scalar(
         r#"
-        SELECT COUNT(*) as "count!"
+        SELECT COUNT(*) 
         FROM profiles
         WHERE beckn_structure IS NOT NULL
-        "#
+        "#,
     )
     .fetch_one(db_pool)
     .await?;
 
-    let rows = sqlx::query!(
+    let rows = sqlx::query(
         r#"
         SELECT
             id,
@@ -159,9 +159,9 @@ pub async fn fetch_profiles(
         LIMIT $1
         OFFSET $2
         "#,
-        limit as i64,
-        offset as i64
     )
+    .bind(limit as i64)
+    .bind(offset as i64)
     .fetch_all(db_pool)
     .await?;
 
@@ -169,16 +169,16 @@ pub async fn fetch_profiles(
         .into_iter()
         .map(|r| {
             serde_json::json!({
-                "id": r.id,
-                "profile_id": r.profile_id,
-                "beckn_structure": r.beckn_structure,
-                "transaction_id": r.transaction_id,
-                "bpp_id": r.bpp_id,
-                "bpp_url": r.bpp_url,
-                "updated_at": r.updated_at
+                "id": r.try_get::<i32, _>("id").ok(),
+                "profile_id": r.try_get::<String, _>("profile_id").ok(),
+                "beckn_structure": r.try_get::<Option<Value>, _>("beckn_structure").ok().flatten(),
+                "transaction_id": r.try_get::<String, _>("transaction_id").ok(),
+                "bpp_id": r.try_get::<String, _>("bpp_id").ok(),
+                "bpp_url": r.try_get::<String, _>("bpp_url").ok(),
+                "updated_at": r.try_get::<chrono::DateTime<chrono::Utc>, _>("updated_at").ok()
             })
         })
-        .collect();
+        .collect::<Vec<_>>();
 
     Ok(PaginatedItems {
         items,
