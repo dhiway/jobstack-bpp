@@ -7,10 +7,8 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 pub async fn run(app_state: AppState) {
-    // Your implementation here
     log_cron_job("🔄", "Starting fetch profiles cron. ");
 
-    // Generate unique IDs for this cron run
     let message_id = format!("msg-profile-{}", Uuid::new_v4());
     let txn_id = format!("cron-profile-{}", Uuid::new_v4());
     let intent = Intent {
