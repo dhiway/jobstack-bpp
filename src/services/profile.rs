@@ -92,7 +92,7 @@ pub async fn handle_on_search(
 
     let total = pagination
         .and_then(|p| p.get("total"))
-        .and_then(|v| v.as_u64())
+        .and_then(|v| v.as_u64().or_else(|| v.as_str()?.parse::<u64>().ok()))
         .unwrap_or(0);
 
     if total == 0 {
