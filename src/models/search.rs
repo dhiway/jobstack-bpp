@@ -103,7 +103,42 @@ pub struct Pagination {
     pub limit: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Options {
     pub breif: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct TalentSearchRequest {
+    pub query: Option<String>,
+    pub trade: Option<String>,
+    pub location: Option<String>,
+    pub radius: Option<i32>,
+    pub pay_range_min: Option<i32>,
+    pub pay_range_max: Option<i32>,
+    pub experience: Option<String>,
+    pub page: Option<u32>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SampleCandidate {
+    pub profile_id: String,
+    pub name: Option<String>,
+    pub role: Option<String>,
+    pub location: Option<String>,
+    pub work_experience: Option<String>,
+    pub work_experience_years: Option<String>,
+    pub last_role_held: Option<String>,
+    pub qualification: Option<String>,
+    pub job_roles_interested_in: Option<String>,
+    pub jobs_interested_in: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TalentSearchResponse {
+    pub candidate_count: i64,
+    pub sample_candidates: Vec<SampleCandidate>,
+    pub page: u32,
+    pub limit: u32,
 }

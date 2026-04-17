@@ -1,6 +1,10 @@
-use crate::db::profile::{delete_stale_profiles, fetch_profiles, store_profiles, NewProfile};
+use crate::db::profile::{
+    delete_stale_profiles, fetch_profiles, store_profiles, NewProfile, TalentSearchParams,
+};
 use crate::models::profiles::ProfileSearchRequest;
-use crate::models::search::{Intent, Pagination, SearchMessage};
+use crate::models::search::{
+    Intent, Pagination, SearchMessage, TalentSearchRequest as ModelTalentSearchRequest,
+};
 use crate::models::webhook::{Ack, AckResponse, AckStatus, WebhookPayload};
 use crate::state::AppState;
 use crate::utils::http_client::post_json;
@@ -214,4 +218,146 @@ pub async fn handle_search(
             ))
         }
     }
+}
+
+pub async fn handle_talent_search(
+    State(app_state): State<AppState>,
+    Json(req): Json<ModelTalentSearchRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let (trade, location, experience, radius) = parse_query(req.query.as_deref());
+
+    let parsed_trade = trade.or(req.trade);
+    let parsed_location = location.or(req.location.clone());
+    let parsed_experience = experience.or(req.experience.clone());
+    let parsed_radius = radius.or(req.radius);
+
+    let params = TalentSearchParams {
+        trade: parsed_trade,
+        location: parsed_location,
+        radius: parsed_radius,
+        experience: parsed_experience,
+        page: req.page.unwrap_or(1).max(1),
+        limit: req.limit.unwrap_or(10).clamp(1, 100),
+    };
+
+    info!(
+        "Searching talent: query={:?}, trade={:?}, location={:?}, experience={:?}, page={}, limit={}",
+        req.query, params.trade, params.location, params.experience, params.page, params.limit
+    );
+
+    match crate::db::profile::search_talent(&app_state.db_pool, params).await {
+        Ok(result) => Ok(Json(serde_json::json!({
+            "candidate_count": result.candidate_count,
+            "matched_count": result.matched_count,
+            "results": result.results,
+            "page": result.page,
+            "limit": result.limit
+        }))),
+
+        Err(err) => {
+            tracing::error!("search_talent failed: {:?}", err);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to search talent"
+                })),
+            ))
+        }
+    }
+}
+
+fn parse_query(
+    query: Option<&str>,
+) -> (Option<String>, Option<String>, Option<String>, Option<i32>) {
+    let query = match query {
+        Some(q) => q.to_lowercase(),
+        None => return (None, None, None, None),
+    };
+
+    let mut trade = None;
+    let mut location = None;
+    let mut experience = None;
+    let mut radius = None;
+
+    let role_keywords = vec![
+        "electrician",
+        "driver",
+        "fitter",
+        "mechanic",
+        "plumber",
+        "carpenter",
+        "welder",
+        "painter",
+        "cook",
+        "waiter",
+        "security guard",
+        "delivery boy",
+        "delivery",
+        "software engineer",
+        "developer",
+        "accountant",
+        "cashier",
+        "sales",
+        "marketing",
+        "manager",
+        "teacher",
+        "nurse",
+        "doctor",
+    ];
+
+    for role in role_keywords {
+        if query.contains(role) {
+            trade = Some(role.to_string());
+            break;
+        }
+    }
+
+    let location_keywords = vec![
+        "bangalore",
+        "bengaluru",
+        "hyderabad",
+        "mumbai",
+        "chennai",
+        "delhi",
+        "pune",
+        "hubballi",
+        "hubli",
+        "mysore",
+        "coimbatore",
+        "kolkata",
+        "ahmedabad",
+        "jaipur",
+    ];
+    for loc in location_keywords {
+        if query.contains(loc) {
+            location = Some(loc.to_string());
+            break;
+        }
+    }
+
+    if let Some(radius_match) = query
+        .split("km")
+        .next()
+        .or_else(|| query.split("kilometer").next())
+    {
+        if let Some(num) = radius_match
+            .split_whitespace()
+            .rev()
+            .find(|s| s.chars().all(|c| c.is_ascii_digit()))
+        {
+            if let Ok(r) = num.parse::<i32>() {
+                radius = Some(r);
+            }
+        }
+    }
+
+    if query.contains("fresher") || query.contains("fresher") || query.contains("new") {
+        experience = Some("Fresher".to_string());
+    } else if let Some(exp_range) = query.matches(char::is_numeric).next() {
+        if query.contains("year") {
+            experience = Some(format!("{} years", exp_range));
+        }
+    }
+
+    (trade, location, experience, radius)
 }

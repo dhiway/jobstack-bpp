@@ -207,3 +207,216 @@ pub async fn delete_stale_profiles(
 
     Ok(result.rows_affected())
 }
+
+pub struct TalentSearchParams {
+    pub trade: Option<String>,
+    pub location: Option<String>,
+    pub radius: Option<i32>,
+    pub experience: Option<String>,
+    pub page: u32,
+    pub limit: u32,
+}
+
+pub struct TalentSearchResult {
+    pub candidate_count: i64,
+    pub matched_count: i64,
+    pub results: Vec<SampleCandidate>,
+    pub page: u32,
+    pub limit: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SampleCandidate {
+    pub profile_id: String,
+    pub name: Option<String>,
+    pub role: Option<String>,
+    pub location: Option<String>,
+    pub work_experience: Option<String>,
+    pub work_experience_years: Option<String>,
+    pub last_role_held: Option<String>,
+    pub qualification: Option<String>,
+    pub job_roles_interested_in: Option<String>,
+    pub jobs_interested_in: Option<Vec<String>>,
+}
+
+pub async fn search_talent(
+    db_pool: &PgPool,
+    params: TalentSearchParams,
+) -> Result<TalentSearchResult, sqlx::Error> {
+    let page = params.page.max(1);
+    let limit = params.limit.clamp(1, 100);
+    let offset = (page - 1) * limit;
+
+    let trade_pattern = params.trade.as_ref().map(|t| format!("%{}%", t));
+    let location_pattern = params.location.as_ref().map(|l| format!("%{}%", l));
+    let experience_pattern = params.experience.as_ref().map(|e| format!("%{}%", e));
+
+    let candidate_count: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+        "#,
+    )
+    .fetch_one(db_pool)
+    .await?;
+
+    let matched_count: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND ($3::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->'whatIHave'->>'workExperience' ILIKE $3)
+        "#,
+    )
+    .bind(&trade_pattern)
+    .bind(&location_pattern)
+    .bind(&experience_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let rows = query(
+        r#"
+        SELECT
+            id,
+            profile_id,
+            beckn_structure,
+            updated_at
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND ($3::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->'whatIHave'->>'workExperience' ILIKE $3)
+        ORDER BY updated_at DESC, profile_id DESC
+        LIMIT $4
+        OFFSET $5
+        "#,
+    )
+    .bind(&trade_pattern)
+    .bind(&location_pattern)
+    .bind(&experience_pattern)
+    .bind(limit as i64)
+    .bind(offset as i64)
+    .fetch_all(db_pool)
+    .await?;
+
+    let results = rows
+        .into_iter()
+        .map(|r| {
+            let beckn: Option<Value> = r.try_get("beckn_structure").ok();
+            let profile = beckn
+                .as_ref()
+                .and_then(|b| b.get("tags"))
+                .and_then(|t| t.get("profile"));
+
+            let who_i_am = profile.and_then(|p| p.get("whoIAm"));
+            let what_i_have = profile.and_then(|p| p.get("whatIHave"));
+            let what_i_want = profile.and_then(|p| p.get("whatIWant"));
+
+            let name = who_i_am
+                .and_then(|w| w.get("name"))
+                .and_then(|n| n.as_str())
+                .map(String::from);
+
+            let role = profile
+                .and_then(|p| p.get("role"))
+                .and_then(|r| r.as_str())
+                .map(String::from);
+
+            let location = profile
+                .and_then(|p| p.get("location"))
+                .and_then(|l| l.get("address"))
+                .or_else(|| {
+                    profile
+                        .and_then(|p| p.get("location"))
+                        .and_then(|l| l.get("city"))
+                })
+                .or_else(|| {
+                    profile
+                        .and_then(|p| p.get("locationdata"))
+                        .and_then(|l| l.get("city"))
+                })
+                .or_else(|| {
+                    profile
+                        .and_then(|p| p.get("locationdata"))
+                        .and_then(|l| l.get("address"))
+                })
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            let work_experience = what_i_have
+                .and_then(|w| w.get("workExperience"))
+                .and_then(|w| w.as_str())
+                .map(String::from);
+
+            let work_experience_years = what_i_have
+                .and_then(|w| w.get("workExperienceYears"))
+                .and_then(|w| w.as_str())
+                .map(String::from);
+
+            let last_role_held = what_i_have
+                .and_then(|w| w.get("nameOfLastRoleHeld"))
+                .and_then(|n| n.as_str())
+                .map(String::from);
+
+            let qualification = what_i_have
+                .and_then(|w| w.get("highestQualificationOrSkill"))
+                .and_then(|h| h.get("category"))
+                .and_then(|c| c.as_str())
+                .map(String::from);
+
+            let job_roles_interested_in = what_i_want
+                .and_then(|w| w.get("nameOfJobRolesInterestedIn"))
+                .and_then(|n| n.as_str())
+                .map(String::from);
+
+            let jobs_interested_in = what_i_want
+                .and_then(|w| w.get("natureOfJobsInterestedIn"))
+                .and_then(|n| n.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                });
+
+            SampleCandidate {
+                profile_id: r.try_get::<String, _>("profile_id").unwrap_or_default(),
+                name,
+                role,
+                location,
+                work_experience,
+                work_experience_years,
+                last_role_held,
+                qualification,
+                job_roles_interested_in,
+                jobs_interested_in,
+            }
+        })
+        .collect();
+
+    Ok(TalentSearchResult {
+        candidate_count,
+        matched_count,
+        results,
+        page,
+        limit,
+    })
+}

@@ -1,9 +1,10 @@
-use crate::services::profile::handle_search;
+use crate::services::profile::{handle_search, handle_talent_search};
 use crate::state::AppState;
 use axum::{routing::post, Router};
 
 pub fn routes(app_state: AppState) -> Router {
     Router::new()
         .route("/v1/search", post(handle_search))
+        .route("/v1/talent/search", post(handle_talent_search))
         .with_state(app_state)
 }
