@@ -1,10 +1,11 @@
 mod fetch_profiles;
 use crate::state::AppState;
 use crate::utils::cron::build_cron_expr;
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use tokio_cron_scheduler::{Job, JobScheduler};
 pub async fn start_cron_jobs(
-    state: AppState,
+    state: Arc<AppState>,
 ) -> Result<JobScheduler, Box<dyn std::error::Error + Send + Sync>> {
     let scheduler = JobScheduler::new().await?;
 

@@ -50,6 +50,11 @@ pub struct CronConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AuthConfig {
+    pub x_api_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     debug: bool,
     pub use_mock_bpp_response: bool,
@@ -60,6 +65,7 @@ pub struct AppConfig {
     pub redis: RedisConfig,
     pub db: DbConfig,
     pub cron: CronConfig,
+    pub auth: AuthConfig,
 }
 
 impl AppConfig {

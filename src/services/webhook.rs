@@ -1,5 +1,10 @@
 use crate::config::AppConfig;
 use crate::models::webhook::Context;
+use crate::models::webhook::{Ack, AckResponse, AckStatus, WebhookPayload};
+use crate::services::{
+    confirm::handle_confirm, init::handle_init, profile::handle_on_search, search::handle_search,
+    select::handle_select, status::handle_status,
+};
 use crate::state::AppState;
 use crate::utils::mock_responses::load_mock_response;
 use crate::workers::processor::spawn_processing_task;
@@ -8,13 +13,8 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
-use crate::models::webhook::{Ack, AckResponse, AckStatus, WebhookPayload};
-use crate::services::{
-    confirm::handle_confirm, init::handle_init, profile::handle_on_search, search::handle_search,
-    select::handle_select, status::handle_status,
-};
 use serde_json::Value;
+use std::sync::Arc;
 use tracing::{debug, info};
 use uuid::Uuid;
 
@@ -67,7 +67,7 @@ pub async fn generate_response(
 
 pub async fn webhook_handler(
     Path(action): Path<String>,
-    State(app_state): State<AppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(payload): Json<WebhookPayload>,
 ) -> impl IntoResponse {
     info!(
@@ -111,7 +111,7 @@ pub async fn webhook_handler(
 
 pub async fn webhook_handler_profiles(
     Path(action): Path<String>,
-    State(app_state): State<AppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(payload): Json<WebhookPayload>,
 ) -> impl IntoResponse {
     let txn_id = payload.context.transaction_id.clone();
