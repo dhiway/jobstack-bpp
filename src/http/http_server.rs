@@ -6,6 +6,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::{net::TcpListener, sync::watch, task::JoinHandle};
 use tracing::info;
+
 pub async fn start_http_server(
     config: AppConfig,
     shutdown_rx: watch::Receiver<()>,
@@ -29,15 +30,15 @@ pub async fn start_http_server(
     let db_pool = PgPool::connect(&config.db.url).await?;
     info!("✅ connected to db at {}", &config.db.url);
 
-    let app_state = AppState {
+    let app_state = Arc::new(AppState {
         config: Arc::new(config.clone()),
         redis_pool,
         db_pool,
-    };
+    });
 
     let _scheduler = start_cron_jobs(app_state.clone()).await;
 
-    let http_server = tokio::spawn(run_http_server(listener, shutdown_rx, app_state));
+    let http_server = tokio::spawn(run_http_server(listener, shutdown_rx, app_state.clone()));
 
     Ok(http_server)
 }
@@ -45,9 +46,9 @@ pub async fn start_http_server(
 pub async fn run_http_server(
     listener: TcpListener,
     mut shutdown_rx: watch::Receiver<()>,
-    app_state: AppState,
+    app_state: Arc<AppState>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let app = create_routes(app_state.clone());
+    let app = create_routes(app_state);
 
     axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(async move {

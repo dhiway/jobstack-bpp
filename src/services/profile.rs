@@ -17,6 +17,7 @@ use chrono::Utc;
 use deadpool_redis::redis::AsyncCommands;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
 
@@ -197,7 +198,7 @@ fn ack() -> Json<AckResponse> {
 }
 
 pub async fn handle_search(
-    State(app_state): State<AppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(req): Json<ProfileSearchRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let pagination = req.pagination.unwrap_or_default();
@@ -223,7 +224,7 @@ pub async fn handle_search(
 }
 
 pub async fn handle_talent_search(
-    State(app_state): State<AppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(req): Json<ModelTalentSearchRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let (trade, location, experience, radius) = parse_query(req.query.as_deref());
@@ -365,7 +366,7 @@ fn parse_query(
 }
 
 pub async fn handle_market_insights(
-    State(app_state): State<AppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(req): Json<ModelMarketInsightsRequest>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     let params = MarketInsightsParams {
@@ -434,7 +435,7 @@ pub async fn handle_market_insights(
 }
 
 pub async fn handle_candidate_details(
-    State(app_state): State<AppState>,
+    State(app_state): State<Arc<AppState>>,
     Path(profile_id): Path<String>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     info!("Getting candidate details for profile_id: {}", profile_id);

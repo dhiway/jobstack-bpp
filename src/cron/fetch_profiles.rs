@@ -3,10 +3,11 @@ use crate::state::AppState;
 use crate::utils::http_client::post_json;
 use crate::utils::logging::log_cron_job;
 use crate::utils::payload_generator::build_profile_beckn_request;
+use std::sync::Arc;
 use tracing::{error, info};
 use uuid::Uuid;
 
-pub async fn run(app_state: AppState) {
+pub async fn run(app_state: Arc<AppState>) {
     log_cron_job("🔄", "Starting fetch profiles cron. ");
 
     let message_id = format!("msg-profile-{}", Uuid::new_v4());

@@ -3,8 +3,9 @@ use crate::services::profile::{
 };
 use crate::state::AppState;
 use axum::{routing::get, routing::post, Router};
+use std::sync::Arc;
 
-pub fn routes(app_state: AppState) -> Router {
+pub fn routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         .route("/v1/search", post(handle_search))
         .route("/v1/talent/search", post(handle_talent_search))
