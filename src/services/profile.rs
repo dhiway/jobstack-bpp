@@ -1,6 +1,6 @@
 use crate::db::profile::{
-    delete_stale_profiles, fetch_profiles, store_profiles, MarketInsightsParams, NewProfile,
-    TalentSearchParams,
+    delete_stale_profiles, fetch_profiles, get_candidate_by_id, store_profiles,
+    MarketInsightsParams, NewProfile, TalentSearchParams,
 };
 use crate::models::profiles::ProfileSearchRequest;
 use crate::models::search::{
@@ -12,7 +12,7 @@ use crate::state::AppState;
 use crate::utils::http_client::post_json;
 use crate::utils::payload_generator::build_profile_beckn_request;
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::Path, extract::State, http::StatusCode, Json};
 use chrono::Utc;
 use deadpool_redis::redis::AsyncCommands;
 use serde_json::Value;
@@ -427,6 +427,37 @@ pub async fn handle_market_insights(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({
                     "error": "Failed to get market insights"
+                })),
+            ))
+        }
+    }
+}
+
+pub async fn handle_candidate_details(
+    State(app_state): State<AppState>,
+    Path(profile_id): Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    info!("Getting candidate details for profile_id: {}", profile_id);
+
+    match get_candidate_by_id(&app_state.db_pool, &profile_id).await {
+        Ok(Some(candidate)) => Ok(Json(serde_json::json!({
+            "profile_id": candidate.profile_id,
+            "profile": candidate.profile,
+        }))),
+
+        Ok(None) => Err((
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Candidate not found"
+            })),
+        )),
+
+        Err(err) => {
+            tracing::error!("get_candidate_by_id failed: {:?}", err);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to get candidate details"
                 })),
             ))
         }

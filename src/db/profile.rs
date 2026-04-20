@@ -802,3 +802,43 @@ pub async fn get_market_insights(
         location_distribution,
     })
 }
+
+#[derive(Debug, Serialize)]
+pub struct CandidateDetails {
+    pub profile_id: String,
+    pub profile: Value,
+}
+
+pub async fn get_candidate_by_id(
+    db_pool: &PgPool,
+    profile_id: &str,
+) -> Result<Option<CandidateDetails>, sqlx::Error> {
+    let row = query(
+        r#"
+        SELECT profile_id, beckn_structure
+        FROM profiles
+        WHERE profile_id = $1
+        "#,
+    )
+    .bind(profile_id)
+    .fetch_optional(db_pool)
+    .await?;
+
+    match row {
+        Some(r) => {
+            let beckn_structure: Option<Value> = r.try_get("beckn_structure").ok().flatten();
+            let profile = beckn_structure
+                .as_ref()
+                .and_then(|b| b.get("tags"))
+                .and_then(|t| t.get("profile"))
+                .cloned()
+                .unwrap_or(Value::Null);
+
+            Ok(Some(CandidateDetails {
+                profile_id: r.try_get::<String, _>("profile_id").unwrap_or_default(),
+                profile,
+            }))
+        }
+        None => Ok(None),
+    }
+}
