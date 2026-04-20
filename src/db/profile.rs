@@ -420,3 +420,385 @@ pub async fn search_talent(
         limit,
     })
 }
+
+pub struct MarketInsightsParams {
+    pub role: Option<String>,
+    pub location: Option<String>,
+}
+
+pub struct MarketInsightsResult {
+    pub total_candidates: i64,
+    pub matched_candidates: i64,
+    pub supply_density: String,
+    pub experience_fresher: i64,
+    pub experience_experienced: i64,
+    pub qualification_school: i64,
+    pub qualification_college: i64,
+    pub qualification_iti: i64,
+    pub qualification_certification: i64,
+    pub qualification_other: i64,
+    pub job_internship: i64,
+    pub job_apprenticeship: i64,
+    pub job_full_time: i64,
+    pub job_flexible: i64,
+    pub gender_male: i64,
+    pub gender_female: i64,
+    pub gender_other: i64,
+    pub location_distribution: Vec<(String, i64)>,
+}
+
+pub async fn get_market_insights(
+    db_pool: &PgPool,
+    params: MarketInsightsParams,
+) -> Result<MarketInsightsResult, sqlx::Error> {
+    let role_pattern = params.role.as_ref().map(|r| format!("%{}%", r));
+    let location_pattern = params.location.as_ref().map(|l| format!("%{}%", l));
+
+    let total_candidates: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+        "#,
+    )
+    .fetch_one(db_pool)
+    .await?;
+
+    let matched_candidates: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let supply_density = if matched_candidates == 0 {
+        "None".to_string()
+    } else if matched_candidates < 50 {
+        "Low".to_string()
+    } else if matched_candidates < 200 {
+        "Medium".to_string()
+    } else {
+        "High".to_string()
+    };
+
+    let experience_fresher: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIHave'->>'workExperience' = 'Fresher'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let experience_experienced = matched_candidates - experience_fresher;
+
+    let qualification_school: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIHave'->'highestQualificationOrSkill'->>'category' = 'School'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let qualification_college: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIHave'->'highestQualificationOrSkill'->>'category' = 'College'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let qualification_iti: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIHave'->'highestQualificationOrSkill'->>'category' ILIKE '%ITI%'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let qualification_certification: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIHave'->'highestQualificationOrSkill'->>'category' ILIKE '%Certification%'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let qualification_other = matched_candidates
+        - qualification_school
+        - qualification_college
+        - qualification_iti
+        - qualification_certification;
+
+    let job_internship: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIWant'->'natureOfJobsInterestedIn' ? 'Internship'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let job_apprenticeship: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIWant'->'natureOfJobsInterestedIn' ? 'Apprenticeship'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let job_full_time: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIWant'->'natureOfJobsInterestedIn' ? 'Full-time'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let job_flexible: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whatIWant'->'natureOfJobsInterestedIn' ? 'Flexible'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let gender_male: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whoIAm'->>'gender' = 'Male'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let gender_female: i64 = query_scalar(
+        r#"
+        SELECT COUNT(*) 
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+          AND ($2::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'location' ILIKE $2
+               OR beckn_structure->'tags'->'profile'->>'city' ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'locationdata'->>'city') ILIKE $2
+               OR (beckn_structure->'tags'->'profile'->'location'->>'city') ILIKE $2)
+          AND beckn_structure->'tags'->'profile'->'whoIAm'->>'gender' = 'Female'
+        "#,
+    )
+    .bind(&role_pattern)
+    .bind(&location_pattern)
+    .fetch_one(db_pool)
+    .await?;
+
+    let gender_other = matched_candidates - gender_male - gender_female;
+
+    let location_rows = query(
+        r#"
+        SELECT 
+            COALESCE(
+                beckn_structure->'tags'->'profile'->'location'->>'city',
+                beckn_structure->'tags'->'profile'->'locationdata'->>'city',
+                beckn_structure->'tags'->'profile'->>'city',
+                'Unknown'
+            ) as city,
+            COUNT(*) as count
+        FROM profiles
+        WHERE beckn_structure IS NOT NULL
+          AND ($1::text IS NULL OR 
+               beckn_structure->'tags'->'profile'->>'role' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIWant'->>'nameOfJobRolesInterestedIn' ILIKE $1
+               OR beckn_structure->'tags'->'profile'->'whatIHave'->>'nameOfLastRoleHeld' ILIKE $1)
+        GROUP BY city
+        ORDER BY count DESC
+        LIMIT 10
+        "#,
+    )
+    .bind(&role_pattern)
+    .fetch_all(db_pool)
+    .await?;
+
+    let location_distribution: Vec<(String, i64)> = location_rows
+        .into_iter()
+        .map(|r| {
+            let city: String = r.try_get("city").unwrap_or_else(|_| "Unknown".to_string());
+            let count: i64 = r.try_get("count").unwrap_or(0);
+            (city, count)
+        })
+        .collect();
+
+    Ok(MarketInsightsResult {
+        total_candidates,
+        matched_candidates,
+        supply_density,
+        experience_fresher,
+        experience_experienced,
+        qualification_school,
+        qualification_college,
+        qualification_iti,
+        qualification_certification,
+        qualification_other,
+        job_internship,
+        job_apprenticeship,
+        job_full_time,
+        job_flexible,
+        gender_male,
+        gender_female,
+        gender_other,
+        location_distribution,
+    })
+}

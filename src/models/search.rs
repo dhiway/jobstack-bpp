@@ -121,6 +121,68 @@ pub struct TalentSearchRequest {
     pub limit: Option<u32>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct MarketInsightsRequest {
+    pub role: Option<String>,
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExperienceInsights {
+    pub fresher: i64,
+    pub experienced: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QualificationInsights {
+    pub school: i64,
+    pub college: i64,
+    pub iti: i64,
+    pub certification: i64,
+    pub other: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JobTypePreference {
+    pub internship: i64,
+    pub apprenticeship: i64,
+    pub full_time: i64,
+    pub flexible: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GenderDistribution {
+    pub male: i64,
+    pub female: i64,
+    pub other: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LocationDistribution {
+    pub city: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MarketInsights {
+    pub experience: ExperienceInsights,
+    pub qualification: QualificationInsights,
+    pub job_type_preference: JobTypePreference,
+    pub gender_distribution: GenderDistribution,
+    pub location_distribution: Vec<LocationDistribution>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MarketInsightsResponse {
+    pub role: Option<String>,
+    pub location: Option<String>,
+    pub total_candidates: i64,
+    pub matched_candidates: i64,
+    pub supply_density: String,
+    pub salary_range: Option<String>,
+    pub insights: MarketInsights,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SampleCandidate {
     pub profile_id: String,
@@ -135,7 +197,7 @@ pub struct SampleCandidate {
     pub jobs_interested_in: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct TalentSearchResponse {
     pub candidate_count: i64,
     pub sample_candidates: Vec<SampleCandidate>,

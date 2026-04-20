@@ -1,9 +1,11 @@
 use crate::db::profile::{
-    delete_stale_profiles, fetch_profiles, store_profiles, NewProfile, TalentSearchParams,
+    delete_stale_profiles, fetch_profiles, store_profiles, MarketInsightsParams, NewProfile,
+    TalentSearchParams,
 };
 use crate::models::profiles::ProfileSearchRequest;
 use crate::models::search::{
-    Intent, Pagination, SearchMessage, TalentSearchRequest as ModelTalentSearchRequest,
+    Intent, LocationDistribution, MarketInsightsRequest as ModelMarketInsightsRequest, Pagination,
+    SearchMessage, TalentSearchRequest as ModelTalentSearchRequest,
 };
 use crate::models::webhook::{Ack, AckResponse, AckStatus, WebhookPayload};
 use crate::state::AppState;
@@ -360,4 +362,73 @@ fn parse_query(
     }
 
     (trade, location, experience, radius)
+}
+
+pub async fn handle_market_insights(
+    State(app_state): State<AppState>,
+    Json(req): Json<ModelMarketInsightsRequest>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let params = MarketInsightsParams {
+        role: req.role.clone(),
+        location: req.location.clone(),
+    };
+
+    info!(
+        "Getting market insights: role={:?}, location={:?}",
+        params.role, params.location
+    );
+
+    match crate::db::profile::get_market_insights(&app_state.db_pool, params).await {
+        Ok(result) => {
+            let location_dist: Vec<LocationDistribution> = result
+                .location_distribution
+                .into_iter()
+                .map(|(city, count)| LocationDistribution { city, count })
+                .collect();
+
+            Ok(Json(serde_json::json!({
+                "role": req.role,
+                "location": req.location,
+                "total_candidates": result.total_candidates,
+                "matched_candidates": result.matched_candidates,
+                "supply_density": result.supply_density,
+                "salary_range": Value::Null,
+                "insights": {
+                    "experience": {
+                        "fresher": result.experience_fresher,
+                        "experienced": result.experience_experienced,
+                    },
+                    "qualification": {
+                        "school": result.qualification_school,
+                        "college": result.qualification_college,
+                        "iti": result.qualification_iti,
+                        "certification": result.qualification_certification,
+                        "other": result.qualification_other,
+                    },
+                    "job_type_preference": {
+                        "full_time": result.job_full_time,
+                        "internship": result.job_internship,
+                        "apprenticeship": result.job_apprenticeship,
+                        "flexible": result.job_flexible,
+                    },
+                    "gender_distribution": {
+                        "male": result.gender_male,
+                        "female": result.gender_female,
+                        "other": result.gender_other,
+                    },
+                    "location_distribution": location_dist,
+                }
+            })))
+        }
+
+        Err(err) => {
+            tracing::error!("get_market_insights failed: {:?}", err);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to get market insights"
+                })),
+            ))
+        }
+    }
 }
