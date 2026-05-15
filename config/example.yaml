@@ -60,11 +60,6 @@ provider_db:
   # URI of the provider catalog database
   db_uri: "https://api.example.com/v1"
 
-# Catalog display name (optional)
-catelog:
-  name: "My Catalog"
-  short_desc: "Service offerings"
-
 # Redis Configuration
 redis:
   # Redis connection URL
