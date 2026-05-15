@@ -1,6 +1,6 @@
 # BPP Onest Lite
 
-A Beckn Provider Platform (BPP) backend service implementing the ONDC Beckn protocol for the travel domain (TRV10).
+A Beckn Provider Platform (BPP) backend service .
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-1.77+-dea056.svg?logo=rust)](https://www.rust-lang.org/)
